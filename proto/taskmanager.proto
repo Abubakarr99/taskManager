@@ -1,0 +1,77 @@
+syntax = "proto3";
+package taskmanager;
+option go_package = "github.com/Abubakarr99/taskManager/proto";
+
+import "google/type/date.proto";
+
+// describes the level of urgency of the task
+enum Urgency {
+  VERY_HIGH = 0;
+  MODERATE = 1;
+  LOW = 2;
+}
+
+// Task represents a task
+message Task {
+  // the id for the task. A UUIDv4 for the task
+  string id = 1;
+  // the title/,name of the task
+  string title = 2;
+  // urgency is the level of urgency of the task
+  Urgency urgency = 3;
+  // Due date is when the task is due to be completed
+  google.type.Date due_date = 4;
+}
+// Represents a range of dates.
+message DateRange {
+  // When to start the range, this is inclusive.
+  google.type.Date start = 1;
+  // When to end the range, this is exclusive.
+  google.type.Date end = 2;
+}
+
+// the request used to add a Task to the system
+message AddTaskReq{
+  repeated Task tasks = 1;
+}
+
+// the response to the AddTaskReq
+message AddTasksResp {
+  // the IDs of the task to add
+  repeated string ids = 1;
+}
+
+// the request to update tasks in the system
+message UpdateTasksReq {
+  repeated Task tasks = 1;
+}
+// the response to UpdateTasks()
+message UpdateTasksResp {}
+
+// indicates the tasks to delete
+message DeleteTasksReq {
+  repeated string ids = 1;
+}
+
+// the response to DeleteTask()
+message DeleteTaskResp {}
+
+// the request to search for tasks
+message SearchTaskReq {
+  // filter by urgency level
+  repeated Urgency urgency = 1;
+  // filter by due date
+  DateRange due_range = 2;
+}
+
+
+service TaskManager {
+  // adds tasks to the taskManager
+  rpc AddTasks(AddTaskReq) returns (AddTasksResp) {};
+  // updates tasks in the taskManager
+  rpc UpdateTasks(UpdateTasksReq) returns (UpdateTasksResp) {};
+  // Delete tasks from the taskManager
+  rpc DeleteTasks(DeleteTasksReq) returns (DeleteTaskResp) {};
+  // finds a task in the TaskManager
+  rpc SearchTasks(SearchTaskReq) returns (stream Task) {};
+}
