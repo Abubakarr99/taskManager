@@ -99,3 +99,19 @@ func (a *API) DeleteTasks(ctx context.Context, req *pb.DeleteTasksReq) (*pb.Dele
 	}
 	return &pb.DeleteTaskResp{}, nil
 }
+
+func (a *API) SearchTasks(req *pb.SearchTaskReq, stream pb.TaskManager_SearchTasksServer) error {
+	// Call the DB-side method to retrieve matching tasks
+	tasks, err := a.db.SearchTasks(req)
+	if err != nil {
+		return fmt.Errorf("failed to search tasks: %w", err)
+	}
+
+	// Stream tasks back to the client
+	for _, task := range tasks {
+		if err := stream.Send(task); err != nil {
+			return fmt.Errorf("failed to stream task: %w", err)
+		}
+	}
+	return nil
+}

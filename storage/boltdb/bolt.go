@@ -82,22 +82,15 @@ func (s *TaskManagerServer) Validate(task *pb.Task) error {
 // AddTasks add tasks to the bolt DB
 func (s *TaskManagerServer) AddTasks(tasks []*pb.Task) ([]string, error) {
 	var ids []string
-	s.mu.RUnlock()
-	s.mu.RLock()
+	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, task := range tasks {
-		if err := s.Validate(task); err != nil {
-			return nil, fmt.Errorf("failed to populate task: %w", err)
-		}
-	}
-
 	err := s.Db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(taskBucket)
 		for _, task := range tasks {
 			task.Id = uuid.New().String()
 			taskjson, err := json.Marshal(task)
 			if err != nil {
-				return fmt.Errorf("failed to serialise task: %w", err)
+				return fmt.Errorf("failed to serialize task: %w", err)
 			}
 			if err := b.Put([]byte(task.Id), taskjson); err != nil {
 				return fmt.Errorf("failed to add task to db: %w", err)
@@ -154,7 +147,8 @@ func (s *TaskManagerServer) DeleteTasks(ctx context.Context, ids []string) error
 	return nil
 }
 
-func (s *TaskManagerServer) SearchTasks(req *pb.SearchTaskReq, stream pb.TaskManager_SearchTasksServer) error {
+func (s *TaskManagerServer) SearchTasks(req *pb.SearchTaskReq) ([]*pb.Task, error) {
+	var matchedTasks []*pb.Task
 	err := s.Db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(taskBucket)
 		return b.ForEach(func(k, v []byte) error {
@@ -182,10 +176,14 @@ func (s *TaskManagerServer) SearchTasks(req *pb.SearchTaskReq, stream pb.TaskMan
 					return nil
 				}
 			}
-			return stream.Send(&task)
+			matchedTasks = append(matchedTasks, &task)
+			return nil
 		})
 	})
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return matchedTasks, nil
 }
 
 // Helper to check if a date is in range
