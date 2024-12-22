@@ -66,9 +66,9 @@ func Validate(task *pb.Task) error {
 }
 
 func (s *TaskManagerServer) Validate(task *pb.Task) error {
-	if task.Id == "" {
+	/*if task.Id == "" {
 		return fmt.Errorf("cannot have a task without ID")
-	}
+	}*/
 	title := strings.TrimSpace(task.Title)
 	if title == "" {
 		return fmt.Errorf("task title cannot be empty")
@@ -107,25 +107,58 @@ func (s *TaskManagerServer) AddTasks(tasks []*pb.Task) ([]string, error) {
 
 // UpdateTasks updates tasks in the BD
 func (s *TaskManagerServer) UpdateTasks(tasks []*pb.Task) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	err := s.Db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(taskBucket)
-		for _, task := range tasks {
-			taskJson, err := json.Marshal(task)
+		if b == nil {
+			return fmt.Errorf("tasks bucket not found")
+		}
+
+		for _, updatedTask := range tasks {
+			// Fetch the existing task
+			taskJson := b.Get([]byte(updatedTask.Id))
+			if taskJson == nil {
+				fmt.Printf("Task with ID %s not found before update\n", updatedTask.Id)
+				return fmt.Errorf("task with ID %s not found", updatedTask.Id)
+			}
+
+			fmt.Printf("Task data before update (ID: %s): %s\n", updatedTask.Id, string(taskJson))
+
+			var existingTask pb.Task
+			if err := json.Unmarshal(taskJson, &existingTask); err != nil {
+				return fmt.Errorf("failed to deserialize existing task: %w", err)
+			}
+
+			// Merge fields from updatedTask into existingTask
+			if updatedTask.Title != "" {
+				existingTask.Title = updatedTask.Title
+			}
+			if updatedTask.Urgency != pb.Urgency_VERY_HIGH && updatedTask.Urgency != existingTask.Urgency {
+				existingTask.Urgency = updatedTask.Urgency
+			}
+			if updatedTask.DueDate != nil {
+				existingTask.DueDate = updatedTask.DueDate
+			}
+
+			// Serialize the updated task
+			mergedTaskJson, err := json.Marshal(&existingTask)
 			if err != nil {
-				return fmt.Errorf("failed to serialise task: %w", err)
+				return fmt.Errorf("failed to serialize updated task: %w", err)
 			}
-			if err := b.Put([]byte(task.Id), taskJson); err != nil {
-				return fmt.Errorf("failed to update task: %w", err)
+
+			// Save back to the database
+			if err := b.Put([]byte(existingTask.Id), mergedTaskJson); err != nil {
+				return fmt.Errorf("failed to update task in DB: %w", err)
 			}
+
+			fmt.Printf("Task data after update (ID: %s): %s\n", updatedTask.Id, string(mergedTaskJson))
 		}
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-	return nil
+
+	return err
 }
 
 // DeleteTasks deletes tasks from the database
@@ -149,15 +182,20 @@ func (s *TaskManagerServer) DeleteTasks(ctx context.Context, ids []string) error
 
 func (s *TaskManagerServer) SearchTasks(req *pb.SearchTaskReq) ([]*pb.Task, error) {
 	var matchedTasks []*pb.Task
+	seen := make(map[string]bool) // Tracks task IDs already added to the result
+
 	err := s.Db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(taskBucket)
 		return b.ForEach(func(k, v []byte) error {
+			fmt.Printf("Key: %s, Value: %s\n", k, v) // Log all keys and values in the bucket
+
 			var task pb.Task
 			if err := json.Unmarshal(v, &task); err != nil {
 				return fmt.Errorf("failed to deserialize task: %w", err)
 			}
 
-			// Filter by urgency of the task
+			// Filter by urgency
+
 			if len(req.Urgency) > 0 {
 				found := false
 				for _, u := range req.Urgency {
@@ -170,16 +208,24 @@ func (s *TaskManagerServer) SearchTasks(req *pb.SearchTaskReq) ([]*pb.Task, erro
 					return nil
 				}
 			}
+
 			// Filter by date range
 			if req.DueRange != nil {
 				if !isDateInRange(task.DueDate, req.DueRange) {
 					return nil
 				}
 			}
-			matchedTasks = append(matchedTasks, &task)
+
+			// Avoid duplicates by checking the `seen` map
+			if _, exists := seen[task.Id]; !exists {
+				matchedTasks = append(matchedTasks, &task)
+				seen[task.Id] = true
+			}
+
 			return nil
 		})
 	})
+
 	if err != nil {
 		return nil, err
 	}
