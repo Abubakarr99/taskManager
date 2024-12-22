@@ -2,9 +2,11 @@ package client
 
 import (
 	"context"
+	"fmt"
 	pb "github.com/Abubakarr99/taskManager/proto"
 	"github.com/Abubakarr99/taskManager/storage/boltdb"
 	"google.golang.org/grpc"
+	"io"
 )
 
 // Client is a client to the task service
@@ -83,4 +85,29 @@ func (c *Client) DeleteTasks(ctx context.Context, ids []string) error {
 		return err
 	}
 	return nil
+}
+
+func (c *Client) SearchTasks(ctx context.Context, filter *pb.SearchTaskReq) (chan Task, error) {
+	if filter == nil {
+		return nil, fmt.Errorf("the filter cannot be empty")
+	}
+	stream, err := c.client.SearchTasks(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	ch := make(chan Task, 1)
+	go func() {
+		defer close(ch)
+		for {
+			t, err := stream.Recv()
+			if err == io.EOF {
+				return
+			}
+			if err != nil {
+				ch <- Task{err: err}
+			}
+			ch <- Task{Task: t}
+		}
+	}()
+	return ch, nil
 }
