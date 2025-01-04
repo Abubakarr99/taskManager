@@ -52,9 +52,9 @@ func Init(dbPath string) (*TaskManagerServer, error) {
 }
 
 func Validate(task *pb.Task) error {
-	if task.Id == "" {
+	/*if task.Id == "" {
 		return fmt.Errorf("cannot have a task without ID")
-	}
+	}*/
 	title := strings.TrimSpace(task.Title)
 	if title == "" {
 		return fmt.Errorf("task title cannot be empty")
