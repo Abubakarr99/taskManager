@@ -111,3 +111,7 @@ func (c *Client) SearchTasks(ctx context.Context, filter *pb.SearchTaskReq) (cha
 	}()
 	return ch, nil
 }
+
+func (t Task) Error() error {
+	return t.err
+}
