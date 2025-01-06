@@ -187,8 +187,6 @@ func (s *TaskManagerServer) SearchTasks(req *pb.SearchTaskReq) ([]*pb.Task, erro
 	err := s.Db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(taskBucket)
 		return b.ForEach(func(k, v []byte) error {
-			fmt.Printf("Key: %s, Value: %s\n", k, v) // Log all keys and values in the bucket
-
 			var task pb.Task
 			if err := json.Unmarshal(v, &task); err != nil {
 				return fmt.Errorf("failed to deserialize task: %w", err)

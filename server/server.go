@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+	"log"
 	"net"
 	"sync"
 )
@@ -76,6 +77,7 @@ func (a *API) AddTasks(ctx context.Context, req *pb.AddTaskReq) (*pb.AddTasksRes
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+	log.Printf("successfully added the tasks %s", ids)
 	return &pb.AddTasksResp{Ids: ids}, nil
 }
 
@@ -90,6 +92,7 @@ func (a *API) UpdateTasks(ctx context.Context, req *pb.UpdateTasksReq) (*pb.Upda
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+	log.Printf("successfully updated the task %s", req.Tasks[0].Id)
 	return &pb.UpdateTasksResp{}, nil
 }
 
@@ -97,6 +100,7 @@ func (a *API) DeleteTasks(ctx context.Context, req *pb.DeleteTasksReq) (*pb.Dele
 	if err := a.db.DeleteTasks(ctx, req.Ids); err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+	log.Printf("successfully deleted the tasks %s", req.Ids)
 	return &pb.DeleteTaskResp{}, nil
 }
 
