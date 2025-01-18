@@ -64,6 +64,21 @@ message SearchTaskReq {
   DateRange due_range = 2;
 }
 
+// Health-check request
+message HealthCheckRequest {
+  string service = 1;
+}
+
+// response health-check
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+    SERVICE_UNKNOWN = 3;
+  }
+  ServingStatus status = 1;
+}
 
 service TaskManager {
   // adds tasks to the taskManager
@@ -74,4 +89,9 @@ service TaskManager {
   rpc DeleteTasks(DeleteTasksReq) returns (DeleteTaskResp) {};
   // finds a task in the TaskManager
   rpc SearchTasks(SearchTaskReq) returns (stream Task) {};
+}
+
+service Health {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+  rpc Watch(HealthCheckRequest) returns (stream HealthCheckResponse);
 }

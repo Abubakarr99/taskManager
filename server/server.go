@@ -8,6 +8,8 @@ import (
 	"github.com/Abubakarr99/taskManager/storage/boltdb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"log"
@@ -43,6 +45,10 @@ func New(addr string, db *boltdb.TaskManagerServer, options ...Option) (*API, er
 	}
 	a.grpcServer = grpc.NewServer(a.gOpts...)
 	a.grpcServer.RegisterService(&pb.TaskManager_ServiceDesc, a)
+	// register the healthServer
+	healthServer := health.NewServer()
+	healthServer.SetServingStatus("TaskManager", grpc_health_v1.HealthCheckResponse_SERVING)
+	grpc_health_v1.RegisterHealthServer(a.grpcServer, healthServer)
 	reflection.Register(a.grpcServer)
 	return a, nil
 }

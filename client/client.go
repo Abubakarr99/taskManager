@@ -6,14 +6,16 @@ import (
 	pb "github.com/Abubakarr99/taskManager/proto"
 	"github.com/Abubakarr99/taskManager/storage/boltdb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"io"
 )
 
 // Client is a client to the task service
 
 type Client struct {
-	client pb.TaskManagerClient
-	conn   *grpc.ClientConn
+	client       pb.TaskManagerClient
+	healthClient grpc_health_v1.HealthClient
+	conn         *grpc.ClientConn
 }
 
 // New is the constructor for client
@@ -23,8 +25,9 @@ func New(addr string) (*Client, error) {
 		return nil, err
 	}
 	return &Client{
-		client: pb.NewTaskManagerClient(conn),
-		conn:   conn,
+		client:       pb.NewTaskManagerClient(conn),
+		healthClient: grpc_health_v1.NewHealthClient(conn),
+		conn:         conn,
 	}, nil
 }
 
@@ -114,4 +117,13 @@ func (c *Client) SearchTasks(ctx context.Context, filter *pb.SearchTaskReq) (cha
 
 func (t Task) Error() error {
 	return t.err
+}
+
+func (c *Client) CheckHealth(ctx context.Context, serviceName string) (grpc_health_v1.HealthCheckResponse_ServingStatus, error) {
+	req := &grpc_health_v1.HealthCheckRequest{Service: serviceName}
+	resp, err := c.healthClient.Check(ctx, req)
+	if err != nil {
+		return grpc_health_v1.HealthCheckResponse_UNKNOWN, err
+	}
+	return resp.Status, nil
 }
