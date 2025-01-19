@@ -6,22 +6,16 @@ import (
 	"github.com/Abubakarr99/taskManager/server"
 	"github.com/Abubakarr99/taskManager/storage/boltdb"
 	"github.com/boltdb/bolt"
-	"github.com/mitchellh/go-homedir"
-	"path/filepath"
 )
 
 var (
-	addr = flag.String("addr", "0.0.0.0:6742", "The address to run the grpc server")
+	addr   = flag.String("addr", "0.0.0.0:6742", "The address to run the grpc server")
+	dbPath = flag.String("dbPath", "/data/tasks.db", "The database path")
 )
 
 func main() {
 	flag.Parse()
-	home, err := homedir.Dir()
-	if err != nil {
-		panic(err)
-	}
-	dbPath := filepath.Join(home, "tasks.db")
-	db, err := boltdb.Init(dbPath)
+	db, err := boltdb.Init(*dbPath)
 	if err != nil {
 		panic(err)
 	}

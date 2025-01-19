@@ -9,9 +9,9 @@ replicaCount: 1
 image:
   repository: aboudev/taskmanager
   # This sets the pull policy for images.
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "1.0.0"
+  tag: "latest"
 
 # This is for the secretes for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []
@@ -41,7 +41,9 @@ podLabels: {}
 podSecurityContext: {}
   # fsGroup: 2000
 
-securityContext: {}
+securityContext:
+  runAsUser: 1001
+  runAsGroup: 1001
   # capabilities:
   #   drop:
   #   - ALL
@@ -87,16 +89,14 @@ resources: {}
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 livenessProbe:
-  exec:
-    command:
-      - /bin/grpc_health_probe
-      - "-addr=:6347"
-readinessProbe:
-  exec:
-    command:
-      - /bin/grpc_health_probe
-      - "-addr=:6347"
+  grpc:
+    port: 6742
+  initialDelaySeconds: 10
 
+readinessProbe:
+  grpc:
+    port: 6742
+  initialDelaySeconds: 10
 # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
 autoscaling:
   enabled: false
@@ -106,14 +106,18 @@ autoscaling:
   # targetMemoryUtilizationPercentage: 80
 
 # Additional volumes on the output Deployment definition.
-volumes: []
+volumes:
+  - name: data
+    emptyDir: {}
 # - name: foo
 #   secret:
 #     secretName: mysecret
 #     optional: false
 
 # Additional volumeMounts on the output Deployment definition.
-volumeMounts: []
+volumeMounts:
+  - name: data
+    mountPath: /data
 # - name: foo
 #   mountPath: "/etc/foo"
 #   readOnly: true
